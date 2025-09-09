@@ -25,11 +25,12 @@ class Scraper:
         soup = BeautifulSoup(page.content, 'html.parser')
         return soup.select(".search-result-list__item")
 
-    def load_institute_page(self, institute_url: str) -> BeautifulSoup:
+    def load_institute_page(self, institute_url: str) -> tuple[BeautifulSoup, str]:
         u"""Load institute page."""
         page = requests.get(institute_url)
         soup = BeautifulSoup(page.content, 'html.parser')
-        return soup
+        institute_name = soup.select_one(".page-header__title").text.strip("\n")
+        return soup, institute_name
 
     def extract_contact_info(self, soup: BeautifulSoup) -> tuple[set, set]:
         u"""Extract the contact information from an HTML page."""
