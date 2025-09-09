@@ -1,6 +1,5 @@
 import urllib.parse as urlparse
 from dataclasses import dataclass
-from pathlib import Path
 
 import requests
 from bs4 import BeautifulSoup, ResultSet
@@ -8,7 +7,8 @@ from bs4 import BeautifulSoup, ResultSet
 @dataclass
 class Institute:
     name: str
-    email: str
+    email: set
+    phone: set
 
 @dataclass
 class Query:
@@ -31,11 +31,22 @@ class Scraper:
         soup = BeautifulSoup(page.content, 'html.parser')
         return soup
 
-    def extract_contact_info(self, soup: BeautifulSoup) -> dict:
+    def extract_contact_info(self, soup: BeautifulSoup) -> tuple[set, set]:
         u"""Extract the contact information from an HTML page."""
-        pass
+        contact_fields = soup.select(".page-layout--24c")
+        mail_addresses = set()
+        phone_numbers = set()
+        for f in contact_fields:
+            # handle email addresses
+            for mailto_links in f.select('a[href^="mailto:"]'):
+                mail_addresses.add(mailto_links.text)
+            # handle phone numbers as fallback
+            for phone_links in f.select('a[href^="tel:"]'):
+                phone_numbers.add(phone_links['href'].lstrip('tel:'))
 
-    def scrape(self, base_url: str) -> Query:
+        return mail_addresses, phone_numbers
+
+    def scrape(self, category: str, category_id, category_name: str, base_url: str) -> Query:
         u"""Scrape contact information for a given search query."""
         results = self.load_search_results(base_url)
         for result in results:
