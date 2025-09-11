@@ -4,17 +4,17 @@ from dataclasses import dataclass
 import requests
 from bs4 import BeautifulSoup, ResultSet
 
-@dataclass
+@dataclass(frozen=True)
 class Institute:
     name: str
-    email: set
-    phone: set
+    email: frozenset
+    phone: frozenset
 
-@dataclass
+@dataclass(frozen=True)
 class Query:
     category: str
     category_name: str
-    institutes: list[Institute]
+    institutes: frozenset[Institute]
 
 class Scraper:
     def load_search_results(self, base_url: str) -> ResultSet:
@@ -32,7 +32,7 @@ class Scraper:
         institute_name = soup.select_one(".page-header__title").text.strip("\n")
         return soup, institute_name
 
-    def extract_contact_info(self, soup: BeautifulSoup) -> tuple[set, set]:
+    def extract_contact_info(self, soup: BeautifulSoup) -> tuple[frozenset, frozenset]:
         u"""Extract the contact information from an HTML page."""
         contact_fields = soup.select(".page-layout--24c")
         mail_addresses = set()
@@ -45,9 +45,10 @@ class Scraper:
             for phone_links in f.select('a[href^="tel:"]'):
                 phone_numbers.add(phone_links['href'].lstrip('tel:'))
 
-        return mail_addresses, phone_numbers
 
-    def scrape(self, category: str, category_id, category_name: str, base_url: str) -> Query:
+        return frozenset(mail_addresses), frozenset(phone_numbers)
+
+    def scrape(self, super_category: str, category_id: str, category_name: str, query_url: str) -> Query:
         u"""Scrape contact information for a given search query."""
         results = self.load_search_results(base_url)
         for result in results:
@@ -58,3 +59,8 @@ class Scraper:
 
 if __name__ == "__main__":
     scraper = Scraper()
+    base_url = "https://miz.org/de/musikleben/institutionen/orchester/oeffentlich-finanzierte-sinfonieorchester"
+    results = scraper.load_search_results(base_url)
+    result_url = results[0].div.get("data-result-url")
+    institute_page, institute_name = scraper.load_institute_page(base_url + result_url)
+    infoboxes = institute_page.select("page-layout--24c")
