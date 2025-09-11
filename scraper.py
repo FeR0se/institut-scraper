@@ -50,17 +50,26 @@ class Scraper:
 
     def scrape(self, super_category: str, category_id: str, category_name: str, query_url: str) -> Query:
         u"""Scrape contact information for a given search query."""
-        results = self.load_search_results(base_url)
+        # Load all search results and extract direct links
+        results = self.load_search_results(query_url)
+        print(f"Found {len(results)} institutes for category \"{category_name}\"")
+
+        # Extract information from all institute pages
+        institutes = set()
         for result in results:
             result_url = result.div.get("data-result-url")
-            institute_page = self.load_institute_page(base_url + result_url)
-            contact_info = self.extract_contact_info(institute_page)
+            institute_page, institute_name = self.load_institute_page("https://miz.org" + result_url)
+            emails, phone_numbers = self.extract_contact_info(institute_page)
+
+            # Aggregate extracted data
+            institutes.add(Institute(name=institute_name, email=emails, phone=phone_numbers))
+
+        print(f"Collected data for {len(institutes)} institutes for {category_name}")
+        query = Query(category=super_category, category_name=category_name, institutes=frozenset(institutes))
+        return query
 
 
 if __name__ == "__main__":
     scraper = Scraper()
     base_url = "https://miz.org/de/musikleben/institutionen/orchester/oeffentlich-finanzierte-sinfonieorchester"
-    results = scraper.load_search_results(base_url)
-    result_url = results[0].div.get("data-result-url")
-    institute_page, institute_name = scraper.load_institute_page(base_url + result_url)
-    infoboxes = institute_page.select("page-layout--24c")
+    query = scraper.scrape("Klangkörper", "KK1", "Öffentlich finanzierte Sinfonieorchester", base_url)
