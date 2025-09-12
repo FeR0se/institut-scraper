@@ -12,7 +12,8 @@ class Institute:
 
 @dataclass(frozen=True)
 class Query:
-    category: str
+    super_category: str
+    category_id: str
     category_name: str
     institutes: frozenset[Institute]
 
@@ -65,7 +66,7 @@ class Scraper:
             institutes.add(Institute(name=institute_name, email=emails, phone=phone_numbers))
 
         print(f"Collected data for {len(institutes)} institutes for {category_name}")
-        query = Query(category=super_category, category_name=category_name, institutes=frozenset(institutes))
+        query = Query(super_category=super_category, category_id=category_id, category_name=category_name, institutes=frozenset(institutes))
         return query
 
 
