@@ -3,6 +3,7 @@ from dataclasses import dataclass
 
 import requests
 from bs4 import BeautifulSoup, ResultSet
+from tqdm.contrib.concurrent import thread_map
 
 @dataclass(frozen=True)
 class Institute:
@@ -12,7 +13,8 @@ class Institute:
 
 @dataclass(frozen=True)
 class Query:
-    category: str
+    super_category: str
+    category_id: str
     category_name: str
     institutes: frozenset[Institute]
 
@@ -48,10 +50,10 @@ class Scraper:
 
         return frozenset(mail_addresses), frozenset(phone_numbers)
 
-    def scrape(self, super_category: str, category_id: str, category_name: str, query_url: str) -> Query:
+    def scrape(self, super_category: str, category_id: str, category_name: str, url: str) -> Query:
         u"""Scrape contact information for a given search query."""
         # Load all search results and extract direct links
-        results = self.load_search_results(query_url)
+        results = self.load_search_results(url)
         print(f"Found {len(results)} institutes for category \"{category_name}\"")
 
         # Extract information from all institute pages
@@ -65,8 +67,13 @@ class Scraper:
             institutes.add(Institute(name=institute_name, email=emails, phone=phone_numbers))
 
         print(f"Collected data for {len(institutes)} institutes for {category_name}")
-        query = Query(category=super_category, category_name=category_name, institutes=frozenset(institutes))
+        query = Query(super_category=super_category, category_id=category_id, category_name=category_name, institutes=frozenset(institutes))
         return query
+
+
+def scrape_query(query_params) -> Query:
+    scraper = Scraper()
+    return scraper.scrape(**query_params)
 
 
 if __name__ == "__main__":
