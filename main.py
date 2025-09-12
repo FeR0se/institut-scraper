@@ -5,9 +5,9 @@ from os import PathLike
 from pathlib import Path
 from collections import defaultdict
 
-from tqdm.contrib.concurrent import process_map
+from tqdm.contrib.concurrent import process_map, thread_map
 
-from scraper import Query, Institute, Scraper
+from scraper import Query, Institute, scrape_query
 
 
 def load_links(filepath: str | PathLike):
@@ -54,10 +54,16 @@ def export_to_csv(data: list[Query], export_path: str | PathLike):
 
 
 if __name__ == "__main__":
-    """parser = argparse.ArgumentParser(description="Scrape contact information from miz.org")
-    parser.add_argument("links", nargs=1, help="CSV containing the links to scrape")
-    parser.add_argument("output_path", nargs=1, help="Path to output CSV")
-    args = parser.parse_args()"""
+    parser = argparse.ArgumentParser(description="Scrape contact information from miz.org")
+    parser.add_argument("links", type=Path, nargs=1, help="CSV containing the links to scrape")
+    parser.add_argument("output_path", type=Path, nargs=1, help="Path to output CSV")
+    args = parser.parse_args()
+
+    links = load_links(args.links[0])
+    queries = process_map(scrape_query, links)
+
+    """base_url = "https://miz.org/de/musikleben/institutionen/orchester/oeffentlich-finanzierte-sinfonieorchester"
+    q = scraper.scrape("Klangkörper", "KK1", "Öffentlich finanzierte Sinfonieorchester", base_url)
     inst = Institute("Testinstitut", frozenset(["mail@testinstitut.de", "kontakt@testinstitut.de"]), frozenset([]))
-    q = Query("Test super", "TS1", "Testkategorie", frozenset([inst]))
-    export_to_csv([q], "/Users/felix/Software/institut-scraper")
+    q = Query("Test super", "TS1", "Testkategorie", frozenset([inst]))"""
+    export_to_csv(queries, "/Users/felix/Software/institut-scraper")
