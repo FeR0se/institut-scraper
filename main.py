@@ -3,9 +3,8 @@ import argparse
 import datetime
 from os import PathLike
 from pathlib import Path
-from collections import defaultdict
 
-from tqdm.contrib.concurrent import process_map, thread_map
+from tqdm.contrib.concurrent import process_map
 
 from scraper import Query, Institute, scrape_query
 
@@ -60,7 +59,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     links = load_links(args.links[0])
-    queries = process_map(scrape_query, links)
+    # Maybe nested concurrency results in too many requests and timeouts
+    #queries = process_map(scrape_query, links)
+    queries = [scrape_query(link) for link in links]
 
     """base_url = "https://miz.org/de/musikleben/institutionen/orchester/oeffentlich-finanzierte-sinfonieorchester"
     q = scraper.scrape("Klangkörper", "KK1", "Öffentlich finanzierte Sinfonieorchester", base_url)
