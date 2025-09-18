@@ -36,7 +36,6 @@ class Scraper:
         results = soup.select(".search-result-list__item")
 
         # Handle more than 1000 results
-        print(soup.select_one(".search-info__num-hits"))
         num_results = soup.select_one(".search-info__num-hits").text.split()[0]
         num_results = int(num_results) if num_results.isnumeric() else 0
         if num_results > 1000:
@@ -82,6 +81,14 @@ class Scraper:
 
         return frozenset(mail_addresses), frozenset(phone_numbers)
 
+    def scrape_institute(self, result: BeautifulSoup) -> Institute:
+        u"""Scrape information for an institute."""
+        result_url = result.div.get("data-result-url")
+        institute_page, institute_name = self.load_institute_page("https://miz.org" + result_url)
+        emails, phone_numbers = self.extract_contact_info(institute_page)
+
+        return Institute(name=institute_name, email=emails, phone=phone_numbers)
+
     def scrape(self, super_category: str, category_id: str, category_name: str, url: str) -> Query:
         u"""Scrape contact information for a given search query."""
         # Load all search results and extract direct links
@@ -89,14 +96,8 @@ class Scraper:
         print(f"Found {len(results)} institutes for category \"{category_name}\"")
 
         # Extract information from all institute pages
-        institutes = set()
-        for result in results:
-            result_url = result.div.get("data-result-url")
-            institute_page, institute_name = self.load_institute_page("https://miz.org" + result_url)
-            emails, phone_numbers = self.extract_contact_info(institute_page)
-
-            # Aggregate extracted data
-            institutes.add(Institute(name=institute_name, email=emails, phone=phone_numbers))
+        institutes = thread_map(self.scrape_institute, results)
+        institutes = set(institutes)
 
         print(f"Collected data for {len(institutes)} institutes for {category_name}")
         query = Query(super_category=super_category, category_id=category_id, category_name=category_name, institutes=frozenset(institutes))
@@ -110,5 +111,5 @@ def scrape_query(query_params) -> Query:
 
 if __name__ == "__main__":
     scraper = Scraper()
-    base_url = "https://miz.org/de/musikleben/institutionen/musikfestivals-musikfestspiele-und-festwochen"
-    query = scraper.scrape("Festivals", "F1", "Musikfestivals, Musikfestspiele und Festwochen", base_url)
+    base_url = "https://miz.org/de/musikleben/institutionen/orchester/oeffentlich-finanzierte-sinfonieorchester"
+    query = scraper.scrape("Klangkörper", "KK1", "Öffentlich finanzierte Sinfonieorchester", base_url)
