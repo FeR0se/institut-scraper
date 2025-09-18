@@ -21,8 +21,11 @@ class Query:
     institutes: frozenset[Institute]
 
 class Scraper:
-    def load_search_results(self, base_url: str) -> ResultSet:
+    def load_search_results(self, base_url: str) -> ResultSet | None:
         u"""Load search results from URL."""
+        if len(base_url) == 0:
+            return None
+
         # Copied this hack directly from the show all results button on the website 🙃
         url = f"{base_url}?{urlparse.urlencode({"rows": 1000})}"
         try:
@@ -93,6 +96,10 @@ class Scraper:
         u"""Scrape contact information for a given search query."""
         # Load all search results and extract direct links
         results = self.load_search_results(url)
+        if results is None:
+            print(f"Found 0 institutes for category \"{category_name}\"")
+            dummy_institute = Institute(name="keine", email=frozenset(["keine"]), phone=frozenset(["keine"]))
+            return Query(super_category=super_category, category_id=category_id, category_name=category_name, institutes=frozenset([dummy_institute]))
         print(f"Found {len(results)} institutes for category \"{category_name}\"")
 
         # Extract information from all institute pages
