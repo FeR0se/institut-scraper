@@ -1,6 +1,7 @@
 import urllib.parse as urlparse
 from dataclasses import dataclass
 
+import requests
 from bs4 import BeautifulSoup, ResultSet
 from tqdm.contrib.concurrent import thread_map
 
@@ -32,7 +33,31 @@ class Scraper:
             raise Exception("Bad URL")
         page = get_url(url)
         soup = BeautifulSoup(page.content, 'html.parser')
-        return soup.select(".search-result-list__item")
+        results = soup.select(".search-result-list__item")
+
+        # Handle more than 1000 results
+        print(soup.select_one(".search-info__num-hits"))
+        num_results = soup.select_one(".search-info__num-hits").text.split()[0]
+        num_results = int(num_results) if num_results.isnumeric() else 0
+        if num_results > 1000:
+            session = requests.Session()
+            results = []
+            while True:
+                response = session.get(url)
+                soup = BeautifulSoup(response.content, 'html.parser')
+
+                # Collect current batch of results
+                batch = soup.select(".search-result-list__item")
+                results.extend(batch)
+
+                # Load next batch
+                loading_button = soup.select_one(".search-result-list__infinite-pagination-button--next")
+                if not loading_button:
+                    break # End loading of more results when all are loaded
+                button_url = loading_button["href"]
+                url = f"https://miz.org{button_url}"
+
+        return results
 
     def load_institute_page(self, institute_url: str) -> tuple[BeautifulSoup, str]:
         u"""Load institute page."""
