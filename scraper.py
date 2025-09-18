@@ -5,6 +5,8 @@ import requests
 from bs4 import BeautifulSoup, ResultSet
 from tqdm.contrib.concurrent import thread_map
 
+from utils import get_url
+
 @dataclass(frozen=True)
 class Institute:
     name: str
@@ -23,13 +25,43 @@ class Scraper:
         u"""Load search results from URL."""
         # Copied this hack directly from the show all results button on the website 🙃
         url = f"{base_url}?{urlparse.urlencode({"rows": 1000})}"
-        page = requests.get(url)
+        try:
+            parsed_url = urlparse.urlparse(url)
+            all([parsed_url.scheme in ("http", "https"), parsed_url.netloc])
+        except:
+            print(f"Failed to parse {url}")
+            raise Exception("Bad URL")
+        page = get_url(url)
         soup = BeautifulSoup(page.content, 'html.parser')
-        return soup.select(".search-result-list__item")
+        results = soup.select(".search-result-list__item")
+
+        # Handle more than 1000 results
+        print(soup.select_one(".search-info__num-hits"))
+        num_results = soup.select_one(".search-info__num-hits").text.split()[0]
+        num_results = int(num_results) if num_results.isnumeric() else 0
+        if num_results > 1000:
+            session = requests.Session()
+            results = []
+            while True:
+                response = session.get(url)
+                soup = BeautifulSoup(response.content, 'html.parser')
+
+                # Collect current batch of results
+                batch = soup.select(".search-result-list__item")
+                results.extend(batch)
+
+                # Load next batch
+                loading_button = soup.select_one(".search-result-list__infinite-pagination-button--next")
+                if not loading_button:
+                    break # End loading of more results when all are loaded
+                button_url = loading_button["href"]
+                url = f"https://miz.org{button_url}"
+
+        return results
 
     def load_institute_page(self, institute_url: str) -> tuple[BeautifulSoup, str]:
         u"""Load institute page."""
-        page = requests.get(institute_url)
+        page = get_url(institute_url)
         soup = BeautifulSoup(page.content, 'html.parser')
         institute_name = soup.select_one(".page-header__title").text.strip("\n")
         return soup, institute_name
@@ -78,5 +110,5 @@ def scrape_query(query_params) -> Query:
 
 if __name__ == "__main__":
     scraper = Scraper()
-    base_url = "https://miz.org/de/musikleben/institutionen/orchester/oeffentlich-finanzierte-sinfonieorchester"
-    query = scraper.scrape("Klangkörper", "KK1", "Öffentlich finanzierte Sinfonieorchester", base_url)
+    base_url = "https://miz.org/de/musikleben/institutionen/musikfestivals-musikfestspiele-und-festwochen"
+    query = scraper.scrape("Festivals", "F1", "Musikfestivals, Musikfestspiele und Festwochen", base_url)
